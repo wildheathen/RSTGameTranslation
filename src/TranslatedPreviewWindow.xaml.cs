@@ -51,6 +51,31 @@ namespace RSTGameTranslation
 
             try
             {
+                // Check if there are translated text objects first — if not,
+                // keep the last translated frame on screen instead of refreshing
+                var textObjects = Logic.Instance.GetTextObjects();
+                if (textObjects == null || textObjects.Count == 0)
+                {
+                    // Don't update — keep showing the last translated preview
+                    return;
+                }
+
+                // Check if any text has been translated
+                bool hasTranslation = false;
+                foreach (var obj in textObjects)
+                {
+                    if (obj != null && !string.IsNullOrEmpty(obj.TextTranslated))
+                    {
+                        hasTranslation = true;
+                        break;
+                    }
+                }
+                if (!hasTranslation)
+                {
+                    // Text detected but not yet translated — don't refresh yet
+                    return;
+                }
+
                 // Load latest screenshot using stream to avoid file locking
                 if (File.Exists(_outputPath))
                 {
@@ -72,14 +97,6 @@ namespace RSTGameTranslation
                 previewOverlayCanvas.Children.Clear();
                 previewOverlayCanvas.Width = previewContainer.Width;
                 previewOverlayCanvas.Height = previewContainer.Height;
-
-                // Get text objects from Logic singleton
-                var textObjects = Logic.Instance.GetTextObjects();
-                if (textObjects == null || textObjects.Count == 0)
-                {
-                    previewStatusText.Text = "No text detected";
-                    return;
-                }
 
                 // DPI correction: TextObject coords are in logical units (divided by DPI scale
                 // in DisplayOcrResults). The screenshot on disk is in physical pixels, so
