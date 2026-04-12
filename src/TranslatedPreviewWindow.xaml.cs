@@ -89,6 +89,7 @@ namespace RSTGameTranslation
 
                 // Diagnostic logging
                 string diagLog = $"[{DateTime.Now:HH:mm:ss}] DPI: {dpiScaleX:F2}x{dpiScaleY:F2} | Image: {previewContainer.Width}x{previewContainer.Height}\n";
+
                 int renderedCount = 0;
                 foreach (var textObj in textObjects)
                 {
@@ -111,22 +112,49 @@ namespace RSTGameTranslation
                     var fgBrush = new SolidColorBrush(fgColor);
                     var bgBrush = new SolidColorBrush(bgColor);
 
-                    // Calculate font size to fit within the detected box height.
-                    // Use a fraction of the box height as a starting point, clamped to reasonable range.
-                    double baseFontSize = physHeight > 0
-                        ? Math.Clamp(physHeight * 0.6, 8, 48)
-                        : 14 * dpiScaleX;
+                    // Adaptive font size: start at 90% of block height (fills single-line blocks well)
+                    // and shrink via binary search until the text fits within the bounding box.
+                    // Round up physHeight to nearest multiple of 5 to normalize OCR height variance
+                    // (OCR may detect identical text lines as 18px or 23px inconsistently).
+                    double normalizedHeight = physHeight > 0 ? Math.Ceiling(physHeight / 5.0) * 5.0 : 0;
+                    double maxFontSize = normalizedHeight > 0 ? normalizedHeight * 0.9 : 16;
+                    double minFontSize = 6;
+                    double fontSize = Math.Clamp(maxFontSize, minFontSize, 96);
 
                     var textBlock = new TextBlock
                     {
                         Text = displayText,
                         Foreground = fgBrush,
-                        FontWeight = FontWeights.Normal,
-                        FontSize = baseFontSize,
+                        FontWeight = FontWeights.Bold,
+                        FontSize = fontSize,
                         TextWrapping = TextWrapping.Wrap,
                         TextTrimming = TextTrimming.None,
                         FlowDirection = textObj.FlowDirection,
                     };
+
+                    // Binary search for the best font size that fits the box
+                    if (physWidth > 0 && physHeight > 0)
+                    {
+                        double lo = minFontSize;
+                        double hi = fontSize;
+                        for (int iter = 0; iter < 10; iter++)
+                        {
+                            textBlock.FontSize = hi;
+                            textBlock.Measure(new System.Windows.Size(physWidth, double.PositiveInfinity));
+                            if (textBlock.DesiredSize.Height <= physHeight)
+                                break; // fits at current size
+
+                            // Too big — binary search down
+                            double mid = (lo + hi) / 2;
+                            textBlock.FontSize = mid;
+                            textBlock.Measure(new System.Windows.Size(physWidth, double.PositiveInfinity));
+                            if (textBlock.DesiredSize.Height <= physHeight)
+                                lo = mid; // fits, try larger
+                            else
+                                hi = mid; // still too big
+                        }
+                        fontSize = textBlock.FontSize;
+                    }
 
                     var border = new Border
                     {
@@ -145,7 +173,7 @@ namespace RSTGameTranslation
                     }
                     if (physHeight > 0)
                     {
-                        border.Height = physHeight;
+                        border.MaxHeight = physHeight;
                     }
 
                     Canvas.SetLeft(border, physX);
@@ -153,7 +181,7 @@ namespace RSTGameTranslation
 
                     previewOverlayCanvas.Children.Add(border);
                     renderedCount++;
-                    diagLog += $"  [{renderedCount}] logical=({textObj.X:F0},{textObj.Y:F0}) phys=({physX:F0},{physY:F0}) size=({physWidth:F0}x{physHeight:F0}) txt={displayText.Substring(0, Math.Min(30, displayText.Length))}\n";
+                    diagLog += $"  [{renderedCount}] pos=({physX:F0},{physY:F0}) size=({physWidth:F0}x{physHeight:F0}) font={fontSize:F1} txt={displayText.Substring(0, Math.Min(30, displayText.Length))}\n";
                 }
 
                 previewStatusText.Text = $"{renderedCount} blocks | {DateTime.Now:HH:mm:ss}";
