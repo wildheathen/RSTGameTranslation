@@ -15,7 +15,7 @@ namespace RSTGameTranslation
         {
             get
             {
-                if (_instance == null || !_instance.IsLoaded)
+                if (_instance == null)
                 {
                     _instance = new TranslatedPreviewWindow();
                 }
@@ -51,13 +51,14 @@ namespace RSTGameTranslation
 
             try
             {
-                // Load latest screenshot
+                // Load latest screenshot using stream to avoid file locking
                 if (File.Exists(_outputPath))
                 {
+                    byte[] imageBytes = File.ReadAllBytes(_outputPath);
                     var bitmap = new BitmapImage();
                     bitmap.BeginInit();
                     bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmap.UriSource = new Uri(_outputPath, UriKind.Absolute);
+                    bitmap.StreamSource = new MemoryStream(imageBytes);
                     bitmap.EndInit();
                     bitmap.Freeze();
 
@@ -80,10 +81,15 @@ namespace RSTGameTranslation
                     return;
                 }
 
-                // DPI correction: TextObject coords are in logical units (divided by DPI scale).
-                // The screenshot on disk is in physical pixels, so multiply coords by DPI scale.
-                DpiHelper.GetDpiForSelectedScreen(out double dpiScaleX, out double dpiScaleY);
+                // DPI correction: TextObject coords are in logical units (divided by DPI scale
+                // in DisplayOcrResults). The screenshot on disk is in physical pixels, so
+                // multiply coords back by the exact same DPI scale that was used during OCR.
+                double dpiScaleX = Logic.Instance.LastOcrDpiScaleX;
+                double dpiScaleY = Logic.Instance.LastOcrDpiScaleY;
 
+                // Diagnostic logging
+                string diagLog = $"[{DateTime.Now:HH:mm:ss}] DPI: {dpiScaleX:F2}x{dpiScaleY:F2} | Image: {previewContainer.Width}x{previewContainer.Height}\n";
+                int renderedCount = 0;
                 foreach (var textObj in textObjects)
                 {
                     if (textObj == null) continue;
@@ -99,47 +105,65 @@ namespace RSTGameTranslation
                     double physWidth = textObj.Width > 0 ? textObj.Width * dpiScaleX : 0;
                     double physHeight = textObj.Height > 0 ? textObj.Height * dpiScaleY : 0;
 
+                    // Create new brushes from the Color values to avoid cross-thread ownership issues
+                    var fgColor = textObj.TextColor?.Color ?? System.Windows.Media.Colors.White;
+                    var bgColor = textObj.BackgroundColor?.Color ?? System.Windows.Media.Color.FromArgb(200, 0, 0, 0);
+                    var fgBrush = new SolidColorBrush(fgColor);
+                    var bgBrush = new SolidColorBrush(bgColor);
+
+                    // Calculate font size to fit within the detected box height.
+                    // Use a fraction of the box height as a starting point, clamped to reasonable range.
+                    double baseFontSize = physHeight > 0
+                        ? Math.Clamp(physHeight * 0.6, 8, 48)
+                        : 14 * dpiScaleX;
+
                     var textBlock = new TextBlock
                     {
                         Text = displayText,
-                        Foreground = textObj.TextColor,
-                        FontWeight = FontWeights.SemiBold,
-                        FontSize = 16 * dpiScaleX,
+                        Foreground = fgBrush,
+                        FontWeight = FontWeights.Normal,
+                        FontSize = baseFontSize,
                         TextWrapping = TextWrapping.Wrap,
+                        TextTrimming = TextTrimming.None,
                         FlowDirection = textObj.FlowDirection,
-                        MaxWidth = physWidth > 0 ? physWidth : double.PositiveInfinity
                     };
 
                     var border = new Border
                     {
-                        Background = textObj.BackgroundColor,
+                        Background = bgBrush,
                         CornerRadius = new CornerRadius(2),
-                        Padding = new Thickness(2),
+                        Padding = new Thickness(1),
                         Child = textBlock,
-                        IsHitTestVisible = false
+                        IsHitTestVisible = false,
+                        ClipToBounds = true
                     };
 
                     if (physWidth > 0)
                     {
-                        border.MaxWidth = physWidth + 20;
-                        border.MinWidth = physWidth;
+                        border.Width = physWidth;
+                        textBlock.MaxWidth = physWidth - 2;
                     }
                     if (physHeight > 0)
                     {
-                        border.MinHeight = physHeight;
+                        border.Height = physHeight;
                     }
 
                     Canvas.SetLeft(border, physX);
                     Canvas.SetTop(border, physY);
 
                     previewOverlayCanvas.Children.Add(border);
+                    renderedCount++;
+                    diagLog += $"  [{renderedCount}] logical=({textObj.X:F0},{textObj.Y:F0}) phys=({physX:F0},{physY:F0}) size=({physWidth:F0}x{physHeight:F0}) txt={displayText.Substring(0, Math.Min(30, displayText.Length))}\n";
                 }
 
-                previewStatusText.Text = $"{textObjects.Count} blocks | {DateTime.Now:HH:mm:ss}";
+                previewStatusText.Text = $"{renderedCount} blocks | {DateTime.Now:HH:mm:ss}";
+                try { File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "preview_debug.log"), diagLog); } catch { }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error refreshing preview: {ex.Message}");
+                string errorLog = $"[{DateTime.Now:HH:mm:ss}] Error refreshing preview: {ex.Message}\n{ex.StackTrace}\n";
+                Console.WriteLine(errorLog);
+                try { File.AppendAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "preview_debug.log"), errorLog); } catch { }
                 previewStatusText.Text = $"Error: {ex.Message}";
             }
         }

@@ -14,10 +14,8 @@
         <Viewbox Stretch="Uniform" StretchDirection="Both">
             <Grid x:Name="previewContainer">
                 <Image x:Name="previewImage"
-                       Stretch="None"
-                       HorizontalAlignment="Left"
-                       VerticalAlignment="Top"
-                       RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+                       Stretch="Fill"
+                       RenderOptions.BitmapScalingMode="HighQuality"/>
                 <Canvas x:Name="previewOverlayCanvas"
                         Panel.ZIndex="1"
                         IsHitTestVisible="False"/>
