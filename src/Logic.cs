@@ -1516,7 +1516,11 @@ namespace RSTGameTranslation
                                 bitmapX, bitmapY, bitmapWidth, bitmapHeight);
 
                             bgColor = ColorUtils.CreateBackgroundColor(dominantColor);
-                            textColor = ColorUtils.GetContrastingTextColor(dominantColor);
+
+                            // Detect actual text foreground color from the screenshot pixels
+                            textColor = ColorUtils.GetTextForegroundColor(
+                                sourceBitmap,
+                                bitmapX, bitmapY, bitmapWidth, bitmapHeight);
                         }
                         else
                         {
