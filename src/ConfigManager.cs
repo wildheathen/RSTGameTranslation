@@ -115,6 +115,7 @@ namespace RSTGameTranslation
         public const string BLOCK_DETECTION_SETTLE_TIME = "block_detection_settle_time";
         public const string KEEP_TRANSLATED_TEXT_UNTIL_REPLACED = "keep_translated_text_until_replaced";
         public const string LEAVE_TRANSLATION_ONSCREEN = "leave_translation_onscreen";
+        public const string CLEAR_OVERLAY_ON_CHANGE = "clear_overlay_on_change";
         public const string MIN_LETTER_CONFIDENCE = "min_letter_confidence";
         public const string MIN_LINE_CONFIDENCE = "min_line_confidence";
         public const string AUTO_TRANSLATE_ENABLED = "auto_translate_enabled";
@@ -538,6 +539,7 @@ namespace RSTGameTranslation
             _configValues[BLOCK_DETECTION_SETTLE_TIME] = (0.2).ToString(CultureInfo.InvariantCulture);
             _configValues[KEEP_TRANSLATED_TEXT_UNTIL_REPLACED] = "true";
             _configValues[LEAVE_TRANSLATION_ONSCREEN] = "true";
+            _configValues[CLEAR_OVERLAY_ON_CHANGE] = "false";
             _configValues[MIN_LETTER_CONFIDENCE] = (0.1).ToString(CultureInfo.InvariantCulture);
             _configValues[MIN_LINE_CONFIDENCE] = (0.1).ToString(CultureInfo.InvariantCulture);
             _configValues[AUTO_TRANSLATE_ENABLED] = "true";
@@ -2657,6 +2659,19 @@ namespace RSTGameTranslation
             _configValues[LEAVE_TRANSLATION_ONSCREEN] = enabled.ToString().ToLower();
             SaveConfig();
             Console.WriteLine($"Leave translation onscreen enabled: {enabled}");
+        }
+
+        public bool IsClearOverlayOnChangeEnabled()
+        {
+            string value = GetValue(CLEAR_OVERLAY_ON_CHANGE, "false");
+            return value.ToLower() == "true";
+        }
+
+        public void SetClearOverlayOnChangeEnabled(bool enabled)
+        {
+            _configValues[CLEAR_OVERLAY_ON_CHANGE] = enabled.ToString().ToLower();
+            SaveConfig();
+            Console.WriteLine($"Clear overlay on change enabled: {enabled}");
         }
 
         // Check if translated text should be kept until replaced

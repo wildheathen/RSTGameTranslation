@@ -120,6 +120,9 @@ namespace RSTGameTranslation
 
                 // Update font size max
                 languageFontSizeMaxTextBox.Text = _currentFontSizeMax.ToString(CultureInfo.InvariantCulture);
+
+                // Update clear overlay on change checkbox
+                clearOverlayOnChangeCheckBox.IsChecked = ConfigManager.Instance.IsClearOverlayOnChangeEnabled();
             }
             catch (Exception ex)
             {
@@ -265,6 +268,9 @@ namespace RSTGameTranslation
                 // Update UI with default values
                 UpdateUIFromSettings();
 
+                // Reset clear overlay on change
+                clearOverlayOnChangeCheckBox.IsChecked = false;
+
                 // Create flash animation for visual feedback
                 CreateFlashAnimation(defaultsButton);
             }
@@ -272,6 +278,12 @@ namespace RSTGameTranslation
             {
                 Console.WriteLine($"Error setting defaults: {ex.Message}");
             }
+        }
+
+        private void ClearOverlayOnChangeCheckBox_CheckedChanged(object sender, RoutedEventArgs e)
+        {
+            bool isEnabled = clearOverlayOnChangeCheckBox.IsChecked ?? false;
+            ConfigManager.Instance.SetClearOverlayOnChangeEnabled(isEnabled);
         }
 
         private void LoadFontSettings()

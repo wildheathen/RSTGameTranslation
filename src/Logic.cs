@@ -642,6 +642,13 @@ namespace RSTGameTranslation
                                         _lastOcrHash = contentHash;
                                         _lastTextContent = textContent;
 
+                                        // Clear stale overlays immediately when content changes
+                                        if (ConfigManager.Instance.IsClearOverlayOnChangeEnabled())
+                                        {
+                                            ClearAllTextObjects();
+                                            MonitorWindow.Instance.RefreshOverlays();
+                                        }
+
                                         //only run if translation is still active
                                         if (MainWindow.Instance.GetIsStarted())
                                         {

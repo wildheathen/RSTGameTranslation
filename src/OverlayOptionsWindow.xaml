@@ -133,6 +133,22 @@
                         </DockPanel>
                     </StackPanel>
                 </GroupBox>
+
+                <!-- Behavior settings -->
+                <GroupBox Header="Behavior" Margin="0,5,0,10" Padding="5">
+                    <StackPanel>
+                        <DockPanel Margin="0,5">
+                            <TextBlock Text="Clear overlay on text change"
+                                       VerticalAlignment="Center"
+                                       Width="200"/>
+                            <CheckBox x:Name="clearOverlayOnChangeCheckBox"
+                                      Margin="5,0,0,0"
+                                      ToolTip="Immediately clear overlay when screen text changes, preventing stale translation boxes from lingering out of position"
+                                      Checked="ClearOverlayOnChangeCheckBox_CheckedChanged"
+                                      Unchecked="ClearOverlayOnChangeCheckBox_CheckedChanged"/>
+                        </DockPanel>
+                    </StackPanel>
+                </GroupBox>
             </StackPanel>
         </ScrollViewer>
 
