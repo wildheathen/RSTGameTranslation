@@ -160,6 +160,7 @@ namespace RSTGameTranslation
         public const string CHATBOX_POSITION_WIDTH = "chatbox_position_width";
         public const string CHATBOX_POSITION_HEIGHT = "chatbox_position_height";
         public const string CHATBOX_DISPLAY_MODE = "chatbox_display_mode";
+        public const string CHATBOX_PARAGRAPH_SPLIT = "chatbox_paragraph_split";
         public const string SOURCE_LANGUAGE = "source_language";
         public const string TARGET_LANGUAGE = "target_language";
         public const string AUDIO_PROCESSING_PROVIDER = "audio_processing_provider";
@@ -505,6 +506,7 @@ namespace RSTGameTranslation
             _configValues[CHATBOX_BACKGROUND_OPACITY] = (0.35).ToString(CultureInfo.InvariantCulture);
             _configValues[CHATBOX_WINDOW_OPACITY] = "1";
             _configValues[CHATBOX_MIN_TEXT_SIZE] = "2";
+            _configValues[CHATBOX_PARAGRAPH_SPLIT] = "false";
             _configValues[TRANSLATION_SERVICE] = "Google Translate";
             _configValues[OLLAMA_URL] = "http://localhost";
             _configValues[OLLAMA_PORT] = (11434).ToString(CultureInfo.InvariantCulture);
@@ -2287,6 +2289,20 @@ namespace RSTGameTranslation
             _configValues[CHATBOX_RECREATE_ON_SHOW] = enabled.ToString().ToLower();
             SaveConfig();
             Console.WriteLine($"Chatbox recreate on show enabled: {enabled}");
+        }
+
+        // Get/Set chatbox paragraph split
+        public bool IsChatBoxParagraphSplitEnabled()
+        {
+            string value = GetValue(CHATBOX_PARAGRAPH_SPLIT, "false");
+            return value.ToLower() == "true";
+        }
+
+        public void SetChatBoxParagraphSplitEnabled(bool enabled)
+        {
+            _configValues[CHATBOX_PARAGRAPH_SPLIT] = enabled.ToString().ToLower();
+            SaveConfig();
+            Console.WriteLine($"ChatBox paragraph split enabled: {enabled}");
         }
 
         // Get/Set chatbox position

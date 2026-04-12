@@ -107,7 +107,8 @@ namespace RSTGameTranslation
                 _originalRecreateChatbox = ConfigManager.Instance.IsChatboxRecreateOnShowEnabled();
                 _currentRecreateChatbox = _originalRecreateChatbox;
                 recreateChatboxCheckBox.IsChecked = _currentRecreateChatbox;
-                
+                paragraphSplitCheckBox.IsChecked = ConfigManager.Instance.IsChatBoxParagraphSplitEnabled();
+
                 // Set current values to match original values
                 _currentBackgroundColor = _originalBackgroundColor;
                 _currentBackgroundOpacity = _originalBackgroundOpacity;
@@ -418,7 +419,8 @@ namespace RSTGameTranslation
                 _currentAutoClearChatboxHistory = DEFAULT_AUTO_CLEAR_CHATBOX_HISTORY;
                 _currentAutoClearChatTimeout = DEFAULT_AUTO_CLEAR_CHAT_TIMEOUT;
                 _currentRecreateChatbox = DEFAULT_RECREATE_CHATBOX;
-                
+                paragraphSplitCheckBox.IsChecked = false;
+
                 // Update UI with default values
                 UpdateUIFromSettings();
                 
@@ -487,6 +489,14 @@ namespace RSTGameTranslation
         {
             bool enabled = recreateChatboxCheckBox.IsChecked ?? false;
             _currentRecreateChatbox = enabled;
+        }
+
+        private void ParagraphSplitCheckBox_CheckedChanged(object sender, RoutedEventArgs e)
+        {
+            bool isEnabled = paragraphSplitCheckBox.IsChecked ?? false;
+            ConfigManager.Instance.SetChatBoxParagraphSplitEnabled(isEnabled);
+            // Refresh chatbox display immediately
+            ChatBoxWindow.Instance?.UpdateChatHistory();
         }
     }
 }

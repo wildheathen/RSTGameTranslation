@@ -165,6 +165,17 @@
                                       Checked="recreateChatboxCheckBox_CheckedChanged"
                                       Unchecked="recreateChatboxCheckBox_CheckedChanged"/>
                         </DockPanel>
+
+                        <DockPanel Margin="0,5">
+                            <TextBlock Text="Split text into paragraphs"
+                                       VerticalAlignment="Center"
+                                       Width="180"/>
+                            <CheckBox x:Name="paragraphSplitCheckBox"
+                                      Margin="5,0,0,0"
+                                      ToolTip="Display each detected text block as a separate paragraph in the chat window"
+                                      Checked="ParagraphSplitCheckBox_CheckedChanged"
+                                      Unchecked="ParagraphSplitCheckBox_CheckedChanged"/>
+                        </DockPanel>
                     </StackPanel>
                 </GroupBox>
 
