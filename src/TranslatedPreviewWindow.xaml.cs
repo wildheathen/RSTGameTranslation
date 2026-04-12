@@ -90,7 +90,12 @@ namespace RSTGameTranslation
                 // Diagnostic logging
                 string diagLog = $"[{DateTime.Now:HH:mm:ss}] DPI: {dpiScaleX:F2}x{dpiScaleY:F2} | Image: {previewContainer.Width}x{previewContainer.Height}\n";
 
-                int renderedCount = 0;
+                // === Phase 1: Calculate font size for each block ===
+                var blockInfos = new System.Collections.Generic.List<(
+                    TextObject textObj, string text, double physX, double physY,
+                    double physWidth, double physHeight, double fontSize,
+                    SolidColorBrush fgBrush, SolidColorBrush bgBrush)>();
+
                 foreach (var textObj in textObjects)
                 {
                     if (textObj == null) continue;
@@ -106,20 +111,96 @@ namespace RSTGameTranslation
                     double physWidth = textObj.Width > 0 ? textObj.Width * dpiScaleX : 0;
                     double physHeight = textObj.Height > 0 ? textObj.Height * dpiScaleY : 0;
 
-                    // Create new brushes from the Color values to avoid cross-thread ownership issues
                     var fgColor = textObj.TextColor?.Color ?? System.Windows.Media.Colors.White;
                     var bgColor = textObj.BackgroundColor?.Color ?? System.Windows.Media.Color.FromArgb(200, 0, 0, 0);
-                    var fgBrush = new SolidColorBrush(fgColor);
-                    var bgBrush = new SolidColorBrush(bgColor);
 
-                    // Adaptive font size: start at 90% of block height (fills single-line blocks well)
-                    // and shrink via binary search until the text fits within the bounding box.
-                    // Round up physHeight to nearest multiple of 5 to normalize OCR height variance
-                    // (OCR may detect identical text lines as 18px or 23px inconsistently).
-                    double normalizedHeight = physHeight > 0 ? Math.Ceiling(physHeight / 5.0) * 5.0 : 0;
+                    // Normalize height to reduce OCR variance
+                    double normalizedHeight = physHeight > 0 ? Math.Max(10, Math.Round(physHeight / 10.0) * 10.0) : 0;
                     double maxFontSize = normalizedHeight > 0 ? normalizedHeight * 0.9 : 16;
-                    double minFontSize = 6;
-                    double fontSize = Math.Clamp(maxFontSize, minFontSize, 96);
+                    double fontSize = Math.Clamp(maxFontSize, 6, 96);
+
+                    // Binary search for font that fits the box
+                    if (physWidth > 0 && physHeight > 0)
+                    {
+                        var probe = new TextBlock
+                        {
+                            Text = displayText, FontWeight = FontWeights.Bold,
+                            FontSize = fontSize, TextWrapping = TextWrapping.Wrap,
+                        };
+                        double lo = 6, hi = fontSize;
+                        for (int iter = 0; iter < 10; iter++)
+                        {
+                            probe.FontSize = hi;
+                            probe.Measure(new System.Windows.Size(physWidth, double.PositiveInfinity));
+                            if (probe.DesiredSize.Height <= physHeight)
+                                break;
+                            double mid = (lo + hi) / 2;
+                            probe.FontSize = mid;
+                            probe.Measure(new System.Windows.Size(physWidth, double.PositiveInfinity));
+                            if (probe.DesiredSize.Height <= physHeight)
+                                lo = mid;
+                            else
+                                hi = mid;
+                        }
+                        fontSize = probe.FontSize;
+                    }
+
+                    blockInfos.Add((textObj, displayText, physX, physY, physWidth, physHeight, fontSize,
+                        new SolidColorBrush(fgColor), new SolidColorBrush(bgColor)));
+                }
+
+                // === Phase 2: Group nearby blocks and equalize font sizes ===
+                // Blocks with similar X (±30px) and consecutive Y (gap < 40px) are a "paragraph".
+                // All blocks in a group use the minimum font of the group so they all fit.
+                var used = new bool[blockInfos.Count];
+                var finalFontSizes = new double[blockInfos.Count];
+                for (int i = 0; i < blockInfos.Count; i++)
+                    finalFontSizes[i] = blockInfos[i].fontSize;
+
+                for (int i = 0; i < blockInfos.Count; i++)
+                {
+                    if (used[i]) continue;
+                    used[i] = true;
+
+                    // Build group of vertically adjacent blocks
+                    var group = new System.Collections.Generic.List<int> { i };
+                    for (int j = i + 1; j < blockInfos.Count; j++)
+                    {
+                        if (used[j]) continue;
+                        // Check if block j is near any block already in the group
+                        foreach (int gi in group)
+                        {
+                            double xDist = Math.Abs(blockInfos[j].physX - blockInfos[gi].physX);
+                            double yDist = Math.Abs(blockInfos[j].physY - blockInfos[gi].physY);
+                            if (xDist < 30 && yDist < 40)
+                            {
+                                group.Add(j);
+                                used[j] = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Equalize: use the median font in the group so one outlier
+                    // (a block where translation is much longer) doesn't shrink all others.
+                    if (group.Count > 1)
+                    {
+                        var groupFonts = new System.Collections.Generic.List<double>();
+                        foreach (int idx in group)
+                            groupFonts.Add(finalFontSizes[idx]);
+                        groupFonts.Sort();
+                        double medianFont = groupFonts[groupFonts.Count / 2];
+                        foreach (int idx in group)
+                            finalFontSizes[idx] = medianFont;
+                    }
+                }
+
+                // === Phase 3: Render blocks ===
+                int renderedCount = 0;
+                for (int i = 0; i < blockInfos.Count; i++)
+                {
+                    var (textObj, displayText, physX, physY, physWidth, physHeight, _, fgBrush, bgBrush) = blockInfos[i];
+                    double fontSize = finalFontSizes[i];
 
                     var textBlock = new TextBlock
                     {
@@ -132,30 +213,6 @@ namespace RSTGameTranslation
                         FlowDirection = textObj.FlowDirection,
                     };
 
-                    // Binary search for the best font size that fits the box
-                    if (physWidth > 0 && physHeight > 0)
-                    {
-                        double lo = minFontSize;
-                        double hi = fontSize;
-                        for (int iter = 0; iter < 10; iter++)
-                        {
-                            textBlock.FontSize = hi;
-                            textBlock.Measure(new System.Windows.Size(physWidth, double.PositiveInfinity));
-                            if (textBlock.DesiredSize.Height <= physHeight)
-                                break; // fits at current size
-
-                            // Too big — binary search down
-                            double mid = (lo + hi) / 2;
-                            textBlock.FontSize = mid;
-                            textBlock.Measure(new System.Windows.Size(physWidth, double.PositiveInfinity));
-                            if (textBlock.DesiredSize.Height <= physHeight)
-                                lo = mid; // fits, try larger
-                            else
-                                hi = mid; // still too big
-                        }
-                        fontSize = textBlock.FontSize;
-                    }
-
                     var border = new Border
                     {
                         Background = bgBrush,
@@ -163,7 +220,7 @@ namespace RSTGameTranslation
                         Padding = new Thickness(1),
                         Child = textBlock,
                         IsHitTestVisible = false,
-                        ClipToBounds = true
+                        ClipToBounds = false
                     };
 
                     if (physWidth > 0)
@@ -173,7 +230,9 @@ namespace RSTGameTranslation
                     }
                     if (physHeight > 0)
                     {
-                        border.MaxHeight = physHeight;
+                        // Use MinHeight so box covers original text, but can grow
+                        // taller if translation needs more lines
+                        border.MinHeight = physHeight;
                     }
 
                     Canvas.SetLeft(border, physX);

@@ -944,6 +944,9 @@ namespace RSTGameTranslation
             // Set auto set overlay background color
             autoSetOverlayBackgroundColorcheckBox.IsChecked = ConfigManager.Instance.IsAutoSetOverlayBackground();
 
+            // Set auto detect text color
+            autoDetectTextColorCheckBox.IsChecked = ConfigManager.Instance.IsAutoDetectTextColorEnabled();
+
             // Set auto merge overlapping text
             autoMergeOverlappingTextCheckBox.IsChecked = ConfigManager.Instance.IsAutoMergeOverlappingTextEnabled();
 
@@ -4411,6 +4414,12 @@ namespace RSTGameTranslation
             bool enabled = autoSetOverlayBackgroundColorcheckBox.IsChecked ?? true;
             ConfigManager.Instance.SetAutoSetOverlayBackground(enabled);
             Console.WriteLine($"Auto set overlay background color set to {enabled}");
+        }
+
+        private void AutoDetectTextColorCheckBox_CheckedChanged(object sender, RoutedEventArgs e)
+        {
+            bool enabled = autoDetectTextColorCheckBox.IsChecked ?? false;
+            ConfigManager.Instance.SetAutoDetectTextColorEnabled(enabled);
         }
 
         private void AutoMergeOverlappingTextCheckBox_CheckedChanged(object sender, RoutedEventArgs e)

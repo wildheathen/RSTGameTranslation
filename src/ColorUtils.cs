@@ -33,29 +33,66 @@ namespace RSTGameTranslation
             // Dictionary to count color occurrences
             Dictionary<int, ColorCount> colorCounts = new Dictionary<int, ColorCount>();
 
-            // Sample pixels (don't need to check every pixel for performance)
-            int sampleStep = Math.Max(1, Math.Min(width, height) / 10);
-            
-            for (int i = x; i < x + width; i += sampleStep)
+            // For small blocks (labels like "DEXTERITY"), text pixels dominate the area
+            // and contaminate the background color. Sample only the edges instead.
+            bool edgeOnly = height < 20 || width < 50;
+
+            if (edgeOnly)
             {
-                for (int j = y; j < y + height; j += sampleStep)
+                // Sample top and bottom rows, plus left and right columns
+                var edgePixels = new List<(int px, int py)>();
+                int step = Math.Max(1, width / 15);
+                // Top edge
+                for (int i = x; i < x + width; i += step)
+                    edgePixels.Add((i, y));
+                // Bottom edge
+                for (int i = x; i < x + width; i += step)
+                    edgePixels.Add((i, Math.Min(y + height - 1, bitmap.Height - 1)));
+                // Left edge
+                for (int j = y; j < y + height; j += Math.Max(1, height / 5))
+                    edgePixels.Add((x, j));
+                // Right edge
+                for (int j = y; j < y + height; j += Math.Max(1, height / 5))
+                    edgePixels.Add((Math.Min(x + width - 1, bitmap.Width - 1), j));
+
+                foreach (var (px, py) in edgePixels)
                 {
-                    Color pixelColor = bitmap.GetPixel(i, j);
-                    
-                    // Skip fully transparent pixels
-                    if (pixelColor.A < 10)
-                        continue;
-                        
-                    // Quantize the color to reduce the number of unique colors
+                    if (px >= bitmap.Width || py >= bitmap.Height) continue;
+                    Color pixelColor = bitmap.GetPixel(px, py);
+                    if (pixelColor.A < 10) continue;
                     int quantizedColor = QuantizeColor(pixelColor);
-                    
                     if (colorCounts.TryGetValue(quantizedColor, out ColorCount? count))
-                    {
                         count.Count++;
-                    }
                     else
-                    {
                         colorCounts[quantizedColor] = new ColorCount { Color = pixelColor, Count = 1 };
+                }
+            }
+            else
+            {
+                // Sample pixels (don't need to check every pixel for performance)
+                int sampleStep = Math.Max(1, Math.Min(width, height) / 10);
+
+                for (int i = x; i < x + width; i += sampleStep)
+                {
+                    for (int j = y; j < y + height; j += sampleStep)
+                    {
+                        Color pixelColor = bitmap.GetPixel(i, j);
+
+                        // Skip fully transparent pixels
+                        if (pixelColor.A < 10)
+                            continue;
+
+                        // Quantize the color to reduce the number of unique colors
+                        int quantizedColor = QuantizeColor(pixelColor);
+
+                        if (colorCounts.TryGetValue(quantizedColor, out ColorCount? count))
+                        {
+                            count.Count++;
+                        }
+                        else
+                        {
+                            colorCounts[quantizedColor] = new ColorCount { Color = pixelColor, Count = 1 };
+                        }
                     }
                 }
             }
@@ -66,7 +103,7 @@ namespace RSTGameTranslation
 
             // Get the most common color
             var dominantColor = colorCounts.Values.OrderByDescending(c => c.Count).First().Color;
-            
+
             return dominantColor;
         }
 

@@ -1517,10 +1517,18 @@ namespace RSTGameTranslation
 
                             bgColor = ColorUtils.CreateBackgroundColor(dominantColor);
 
-                            // Detect actual text foreground color from the screenshot pixels
-                            textColor = ColorUtils.GetTextForegroundColor(
-                                sourceBitmap,
-                                bitmapX, bitmapY, bitmapWidth, bitmapHeight);
+                            // Detect actual text foreground color from the screenshot pixels,
+                            // or fall back to simple contrasting color (black/white)
+                            if (ConfigManager.Instance.IsAutoDetectTextColorEnabled())
+                            {
+                                textColor = ColorUtils.GetTextForegroundColor(
+                                    sourceBitmap,
+                                    bitmapX, bitmapY, bitmapWidth, bitmapHeight);
+                            }
+                            else
+                            {
+                                textColor = ColorUtils.GetContrastingTextColor(dominantColor);
+                            }
                         }
                         else
                         {

@@ -190,6 +190,7 @@ namespace RSTGameTranslation
         public const string OVERLAY_BACKGROUND_COLOR = "OverlayBackgroundColor";
         public const string OVERLAY_TEXT_COLOR = "OverlayTextColor";
         public const string IS_AUTO_SET_OVERLAY_BACKGROUND = "IsAutoSetOverlayBackground";
+        public const string AUTO_DETECT_TEXT_COLOR = "auto_detect_text_color";
         public const string AUTO_MERGE_OVERLAPPING_TEXT = "AutoMergeOverlappingText";
 
         // Constants for screen selection
@@ -2175,6 +2176,19 @@ namespace RSTGameTranslation
             _configValues[IS_AUTO_SET_OVERLAY_BACKGROUND] = enabled.ToString().ToLower();
             SaveConfig();
             Console.WriteLine($"Auto Set Overlay Background enabled: {enabled}");
+        }
+
+        public bool IsAutoDetectTextColorEnabled()
+        {
+            string value = GetValue(AUTO_DETECT_TEXT_COLOR, "false");
+            return value.ToLower() == "true";
+        }
+
+        public void SetAutoDetectTextColorEnabled(bool enabled)
+        {
+            _configValues[AUTO_DETECT_TEXT_COLOR] = enabled.ToString().ToLower();
+            SaveConfig();
+            Console.WriteLine($"Auto detect text color enabled: {enabled}");
         }
 
         public bool IsAutoMergeOverlappingTextEnabled()
