@@ -669,8 +669,21 @@
                                             </DataTemplate>
                                         </Button.ContentTemplate>
                                     </Button>
+                                    <Button x:Name="previewButton" Style="{StaticResource ModernButton}"
+                                            Content="Preview"
+                                            Background="#e67e22" Click="PreviewButton_Click"
+                                            WindowChrome.IsHitTestVisibleInChrome="True">
+                                        <Button.ContentTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="&#x1f5bc; " FontSize="10" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </Button.ContentTemplate>
+                                    </Button>
                                 </StackPanel>
-                                <TextBlock Text="{Binding Source={x:Static local:LocalizationManager.Instance}, Path=Strings[Grp_DisplayResults]}" 
+                                <TextBlock Text="{Binding Source={x:Static local:LocalizationManager.Instance}, Path=Strings[Grp_DisplayResults]}"
                                            Style="{StaticResource ToolGroupLabel}"/>
                             </StackPanel>
                         </Border>

@@ -2807,6 +2807,30 @@ namespace RSTGameTranslation
             }
         }
 
+        // Preview Button click handler
+        private void PreviewButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (TranslatedPreviewWindow.Instance.IsVisible)
+            {
+                TranslatedPreviewWindow.Instance.Hide();
+                previewButton.Background = new SolidColorBrush(Color.FromRgb(230, 126, 34));
+            }
+            else
+            {
+                TranslatedPreviewWindow.Instance.Show();
+                TranslatedPreviewWindow.Instance.RefreshPreview();
+                previewButton.Background = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+            }
+        }
+
+        public void OnPreviewWindowClosed()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                previewButton.Background = new SolidColorBrush(Color.FromRgb(230, 126, 34));
+            });
+        }
+
         // ChatBox Button click handler
         private void ChatBoxButton_Click(object sender, RoutedEventArgs e)
         {

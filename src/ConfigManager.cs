@@ -183,6 +183,9 @@ namespace RSTGameTranslation
         public const string CLIPBOARD_AUTO_TRANSLATE_DEBOUNCE_MS = "clipboard_auto_translate_debounce_ms";
         public const string CLIPBOARD_AUTO_TRANSLATE_MAX_CHARS = "clipboard_auto_translate_max_chars";
 
+        // Translated Preview Window
+        public const string SHOW_TRANSLATED_PREVIEW = "show_translated_preview";
+
         // Constants for overlay settings
         public const string OVERLAY_BACKGROUND_COLOR = "OverlayBackgroundColor";
         public const string OVERLAY_TEXT_COLOR = "OverlayTextColor";
@@ -595,6 +598,7 @@ namespace RSTGameTranslation
             _configValues[CLIPBOARD_AUTO_TRANSLATE_MAX_CHARS] = "5000";
             _configValues[WHISPER_RUNTIME] = "cpu";
             _configValues[AUTO_MERGE_OVERLAPPING_TEXT] = "true";
+            _configValues[SHOW_TRANSLATED_PREVIEW] = "false";
 
             // Save the default configuration
             SaveConfig();
@@ -2640,6 +2644,19 @@ namespace RSTGameTranslation
                 SaveConfig();
                 Console.WriteLine($"Mistral model set to: {model}");
             }
+        }
+
+        // Translated Preview Window methods
+        public bool IsTranslatedPreviewEnabled()
+        {
+            string value = GetValue(SHOW_TRANSLATED_PREVIEW, "false");
+            return value.ToLower() == "true";
+        }
+
+        public void SetTranslatedPreviewEnabled(bool enabled)
+        {
+            _configValues[SHOW_TRANSLATED_PREVIEW] = enabled.ToString().ToLower();
+            SaveConfig();
         }
 
         // OCR Display methods

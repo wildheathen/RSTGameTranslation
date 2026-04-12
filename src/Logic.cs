@@ -293,6 +293,7 @@ namespace RSTGameTranslation
         {
             SetWaitingForTranslationToFinish(false);
             MonitorWindow.Instance.RefreshOverlays();
+            TranslatedPreviewWindow.Instance?.RefreshPreview();
 
             // Hide translation status
             if (bResetTranslationStatus)
