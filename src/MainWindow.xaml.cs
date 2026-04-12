@@ -916,6 +916,12 @@ namespace RSTGameTranslation
             UpdateCustomCaptureRect();
 
             selectAreaButton.Background = new SolidColorBrush(Color.FromRgb(20, 180, 20)); // Green
+
+            // Restore main window after area selection
+            if (this.WindowState == WindowState.Minimized)
+            {
+                this.WindowState = WindowState.Normal;
+            }
         }
 
         public void SwitchToTranslationArea(int index)
