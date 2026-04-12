@@ -113,6 +113,11 @@ namespace RSTGameTranslation
             _overlayContainer = overlayContainer;
         }
 
+        // DPI scale used during the last DisplayOcrResults call — needed by
+        // TranslatedPreviewWindow to convert logical coords back to physical pixels.
+        public double LastOcrDpiScaleX { get; private set; } = 1.0;
+        public double LastOcrDpiScaleY { get; private set; } = 1.0;
+
         // Get the list of current text objects
         public IReadOnlyList<TextObject> GetTextObjects()
         {
@@ -293,6 +298,13 @@ namespace RSTGameTranslation
         {
             SetWaitingForTranslationToFinish(false);
             MonitorWindow.Instance.RefreshOverlays();
+
+            // Refresh preview on UI thread (OnFinishedThings may be called from background threads)
+            System.Windows.Application.Current?.Dispatcher.BeginInvoke(() =>
+            {
+                if (TranslatedPreviewWindow.Instance.IsVisible)
+                    TranslatedPreviewWindow.Instance.RefreshPreview();
+            });
 
             // Hide translation status
             if (bResetTranslationStatus)
@@ -1364,6 +1376,8 @@ namespace RSTGameTranslation
                                 // Get fresh DPI scale from the screen where MonitorWindow is currently displayed
                                 // Don't use cached MonitorWindow.Instance.dpiScale as it may be stale
                                 DpiHelper.GetCurrentScreenDpi(out double dpiScaleX, out double dpiScaleY);
+                                LastOcrDpiScaleX = dpiScaleX;
+                                LastOcrDpiScaleY = dpiScaleY;
                                 CreateTextObjectAtPosition(text, x / dpiScaleX, y / dpiScaleY, width / dpiScaleX, height / dpiScaleY, confidence, sourceBitmap);
                             }
                         }
@@ -1375,6 +1389,8 @@ namespace RSTGameTranslation
                         var (mergedBlocks, blockOriginalBounds) = MergeOverlappingTextBlocks(tempBlocks);
                         // Get fresh DPI scale from the screen where MonitorWindow is currently displayed
                         DpiHelper.GetCurrentScreenDpi(out double dpiScaleX, out double dpiScaleY);
+                        LastOcrDpiScaleX = dpiScaleX;
+                        LastOcrDpiScaleY = dpiScaleY;
 
                         for (int i = 0; i < mergedBlocks.Count; i++)
                         {
@@ -1507,7 +1523,19 @@ namespace RSTGameTranslation
                                 bitmapX, bitmapY, bitmapWidth, bitmapHeight);
 
                             bgColor = ColorUtils.CreateBackgroundColor(dominantColor);
-                            textColor = ColorUtils.GetContrastingTextColor(dominantColor);
+
+                            // Detect actual text foreground color from the screenshot pixels,
+                            // or fall back to simple contrasting color (black/white)
+                            if (ConfigManager.Instance.IsAutoDetectTextColorEnabled())
+                            {
+                                textColor = ColorUtils.GetTextForegroundColor(
+                                    sourceBitmap,
+                                    bitmapX, bitmapY, bitmapWidth, bitmapHeight);
+                            }
+                            else
+                            {
+                                textColor = ColorUtils.GetContrastingTextColor(dominantColor);
+                            }
                         }
                         else
                         {

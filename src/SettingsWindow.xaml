@@ -849,10 +849,19 @@
                                 <TextBlock Text="{Binding Source={x:Static local:LocalizationManager.Instance}, Path=Strings[Lbl_AutoMergeOverlappingText]}" Grid.Row="3" Grid.Column="0" 
                                           VerticalAlignment="Center" Margin="0,8,10,0" 
                                           ToolTip="Automatically merge text blocks that would overlap when translation is longer than original text"/>
-                                <CheckBox x:Name="autoMergeOverlappingTextCheckBox" Grid.Row="3" Grid.Column="1" 
+                                <CheckBox x:Name="autoMergeOverlappingTextCheckBox" Grid.Row="3" Grid.Column="1"
                                          Margin="20,8,0,0" IsChecked="True" Padding="5,3"
-                                         Checked="AutoMergeOverlappingTextCheckBox_CheckedChanged" 
+                                         Checked="AutoMergeOverlappingTextCheckBox_CheckedChanged"
                                          Unchecked="AutoMergeOverlappingTextCheckBox_CheckedChanged"/>
+
+                                <!-- Auto Detect Text Color -->
+                                <TextBlock Text="Auto detect text color:" Grid.Row="4" Grid.Column="0"
+                                          VerticalAlignment="Center" Margin="0,8,10,0"
+                                          ToolTip="Detect the actual text color from the screenshot instead of using a simple contrasting color (black/white)"/>
+                                <CheckBox x:Name="autoDetectTextColorCheckBox" Grid.Row="4" Grid.Column="1"
+                                         Margin="20,8,0,0" IsChecked="False" Padding="5,3"
+                                         Checked="AutoDetectTextColorCheckBox_CheckedChanged"
+                                         Unchecked="AutoDetectTextColorCheckBox_CheckedChanged"/>
                             </Grid>
                         </GroupBox>
                     </StackPanel>

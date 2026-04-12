@@ -916,6 +916,12 @@ namespace RSTGameTranslation
             UpdateCustomCaptureRect();
 
             selectAreaButton.Background = new SolidColorBrush(Color.FromRgb(20, 180, 20)); // Green
+
+            // Restore main window after area selection
+            if (this.WindowState == WindowState.Minimized)
+            {
+                this.WindowState = WindowState.Normal;
+            }
         }
 
         public void SwitchToTranslationArea(int index)
@@ -2805,6 +2811,30 @@ namespace RSTGameTranslation
             {
                 Console.WriteLine($"Error handling screen selection change: {ex.Message}");
             }
+        }
+
+        // Preview Button click handler
+        private void PreviewButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (TranslatedPreviewWindow.Instance.IsVisible)
+            {
+                TranslatedPreviewWindow.Instance.Hide();
+                previewButton.Background = new SolidColorBrush(Color.FromRgb(230, 126, 34));
+            }
+            else
+            {
+                TranslatedPreviewWindow.Instance.Show();
+                TranslatedPreviewWindow.Instance.RefreshPreview();
+                previewButton.Background = new SolidColorBrush(Color.FromRgb(239, 68, 68));
+            }
+        }
+
+        public void OnPreviewWindowClosed()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                previewButton.Background = new SolidColorBrush(Color.FromRgb(230, 126, 34));
+            });
         }
 
         // ChatBox Button click handler

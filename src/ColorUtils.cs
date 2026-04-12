@@ -33,29 +33,66 @@ namespace RSTGameTranslation
             // Dictionary to count color occurrences
             Dictionary<int, ColorCount> colorCounts = new Dictionary<int, ColorCount>();
 
-            // Sample pixels (don't need to check every pixel for performance)
-            int sampleStep = Math.Max(1, Math.Min(width, height) / 10);
-            
-            for (int i = x; i < x + width; i += sampleStep)
+            // For small blocks (labels like "DEXTERITY"), text pixels dominate the area
+            // and contaminate the background color. Sample only the edges instead.
+            bool edgeOnly = height < 20 || width < 50;
+
+            if (edgeOnly)
             {
-                for (int j = y; j < y + height; j += sampleStep)
+                // Sample top and bottom rows, plus left and right columns
+                var edgePixels = new List<(int px, int py)>();
+                int step = Math.Max(1, width / 15);
+                // Top edge
+                for (int i = x; i < x + width; i += step)
+                    edgePixels.Add((i, y));
+                // Bottom edge
+                for (int i = x; i < x + width; i += step)
+                    edgePixels.Add((i, Math.Min(y + height - 1, bitmap.Height - 1)));
+                // Left edge
+                for (int j = y; j < y + height; j += Math.Max(1, height / 5))
+                    edgePixels.Add((x, j));
+                // Right edge
+                for (int j = y; j < y + height; j += Math.Max(1, height / 5))
+                    edgePixels.Add((Math.Min(x + width - 1, bitmap.Width - 1), j));
+
+                foreach (var (px, py) in edgePixels)
                 {
-                    Color pixelColor = bitmap.GetPixel(i, j);
-                    
-                    // Skip fully transparent pixels
-                    if (pixelColor.A < 10)
-                        continue;
-                        
-                    // Quantize the color to reduce the number of unique colors
+                    if (px >= bitmap.Width || py >= bitmap.Height) continue;
+                    Color pixelColor = bitmap.GetPixel(px, py);
+                    if (pixelColor.A < 10) continue;
                     int quantizedColor = QuantizeColor(pixelColor);
-                    
                     if (colorCounts.TryGetValue(quantizedColor, out ColorCount? count))
-                    {
                         count.Count++;
-                    }
                     else
-                    {
                         colorCounts[quantizedColor] = new ColorCount { Color = pixelColor, Count = 1 };
+                }
+            }
+            else
+            {
+                // Sample pixels (don't need to check every pixel for performance)
+                int sampleStep = Math.Max(1, Math.Min(width, height) / 10);
+
+                for (int i = x; i < x + width; i += sampleStep)
+                {
+                    for (int j = y; j < y + height; j += sampleStep)
+                    {
+                        Color pixelColor = bitmap.GetPixel(i, j);
+
+                        // Skip fully transparent pixels
+                        if (pixelColor.A < 10)
+                            continue;
+
+                        // Quantize the color to reduce the number of unique colors
+                        int quantizedColor = QuantizeColor(pixelColor);
+
+                        if (colorCounts.TryGetValue(quantizedColor, out ColorCount? count))
+                        {
+                            count.Count++;
+                        }
+                        else
+                        {
+                            colorCounts[quantizedColor] = new ColorCount { Color = pixelColor, Count = 1 };
+                        }
                     }
                 }
             }
@@ -66,7 +103,7 @@ namespace RSTGameTranslation
 
             // Get the most common color
             var dominantColor = colorCounts.Values.OrderByDescending(c => c.Count).First().Color;
-            
+
             return dominantColor;
         }
 
@@ -108,12 +145,12 @@ namespace RSTGameTranslation
         public static MediaColor GetContrastingTextColor(Color backgroundColor)
         {
             double brightness = (0.299 * backgroundColor.R + 0.587 * backgroundColor.G + 0.114 * backgroundColor.B) / 255;
-            
-            if (brightness > 0.7) 
+
+            if (brightness > 0.7)
             {
                 return MediaColor.FromRgb(0, 0, 0);
             }
-            else if (brightness > 0.5) 
+            else if (brightness > 0.5)
             {
                 return MediaColor.FromRgb(20, 20, 20);
             }
@@ -121,10 +158,102 @@ namespace RSTGameTranslation
             {
                 return MediaColor.FromRgb(255, 255, 255);
             }
-            else 
+            else
             {
                 return MediaColor.FromRgb(240, 240, 240);
             }
+        }
+
+        /// <summary>
+        /// Detects the actual text foreground color from a bitmap region by finding
+        /// the most common color that is sufficiently different from the dominant (background) color.
+        /// Falls back to a contrasting black/white if no distinct text color is found.
+        /// </summary>
+        public static MediaColor GetTextForegroundColor(Bitmap bitmap, int x, int y, int width, int height)
+        {
+            x = Math.Max(0, Math.Min(x, bitmap.Width - 1));
+            y = Math.Max(0, Math.Min(y, bitmap.Height - 1));
+            width = Math.Min(width, bitmap.Width - x);
+            height = Math.Min(height, bitmap.Height - y);
+
+            if (width <= 0 || height <= 0)
+                return MediaColor.FromRgb(255, 255, 255);
+
+            // Collect all pixel colors with quantization
+            Dictionary<int, ColorCount> colorCounts = new Dictionary<int, ColorCount>();
+            int sampleStep = Math.Max(1, Math.Min(width, height) / 15);
+
+            for (int i = x; i < x + width; i += sampleStep)
+            {
+                for (int j = y; j < y + height; j += sampleStep)
+                {
+                    Color pixelColor = bitmap.GetPixel(i, j);
+                    if (pixelColor.A < 10) continue;
+
+                    int quantizedColor = QuantizeColorFine(pixelColor);
+                    if (colorCounts.TryGetValue(quantizedColor, out ColorCount? count))
+                    {
+                        count.Count++;
+                        // Keep a running average for more accurate color
+                        count.TotalR += pixelColor.R;
+                        count.TotalG += pixelColor.G;
+                        count.TotalB += pixelColor.B;
+                    }
+                    else
+                    {
+                        colorCounts[quantizedColor] = new ColorCount
+                        {
+                            Color = pixelColor, Count = 1,
+                            TotalR = pixelColor.R, TotalG = pixelColor.G, TotalB = pixelColor.B
+                        };
+                    }
+                }
+            }
+
+            if (colorCounts.Count < 2)
+                return GetContrastingTextColor(GetDominantColor(bitmap, x, y, width, height));
+
+            // Sort by frequency: most common is likely background, second is likely text
+            var sorted = colorCounts.Values.OrderByDescending(c => c.Count).ToList();
+            var bgEntry = sorted[0];
+            Color bgColor = Color.FromArgb(
+                (int)(bgEntry.TotalR / bgEntry.Count),
+                (int)(bgEntry.TotalG / bgEntry.Count),
+                (int)(bgEntry.TotalB / bgEntry.Count));
+
+            // Find the most frequent color that differs enough from the background
+            foreach (var entry in sorted.Skip(1))
+            {
+                Color avgColor = Color.FromArgb(
+                    (int)(entry.TotalR / entry.Count),
+                    (int)(entry.TotalG / entry.Count),
+                    (int)(entry.TotalB / entry.Count));
+
+                double colorDistance = Math.Sqrt(
+                    Math.Pow(avgColor.R - bgColor.R, 2) +
+                    Math.Pow(avgColor.G - bgColor.G, 2) +
+                    Math.Pow(avgColor.B - bgColor.B, 2));
+
+                // Require minimum distance of 60 in RGB space to be considered "text"
+                if (colorDistance > 60)
+                {
+                    return MediaColor.FromRgb(avgColor.R, avgColor.G, avgColor.B);
+                }
+            }
+
+            // No distinct text color found, fall back to contrast
+            return GetContrastingTextColor(bgColor);
+        }
+
+        /// <summary>
+        /// Finer quantization for text color detection (4 bits per channel instead of 3)
+        /// </summary>
+        private static int QuantizeColorFine(Color color)
+        {
+            int r = color.R & 0xF0;
+            int g = color.G & 0xF0;
+            int b = color.B & 0xF0;
+            return (r << 16) | (g << 8) | b;
         }
         
         /// <summary>
@@ -144,6 +273,9 @@ namespace RSTGameTranslation
         {
             public Color Color { get; set; }
             public int Count { get; set; }
+            public long TotalR { get; set; }
+            public long TotalG { get; set; }
+            public long TotalB { get; set; }
         }
     }
 }

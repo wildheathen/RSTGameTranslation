@@ -185,10 +185,14 @@ namespace RSTGameTranslation
         public const string CLIPBOARD_AUTO_TRANSLATE_DEBOUNCE_MS = "clipboard_auto_translate_debounce_ms";
         public const string CLIPBOARD_AUTO_TRANSLATE_MAX_CHARS = "clipboard_auto_translate_max_chars";
 
+        // Translated Preview Window
+        public const string SHOW_TRANSLATED_PREVIEW = "show_translated_preview";
+
         // Constants for overlay settings
         public const string OVERLAY_BACKGROUND_COLOR = "OverlayBackgroundColor";
         public const string OVERLAY_TEXT_COLOR = "OverlayTextColor";
         public const string IS_AUTO_SET_OVERLAY_BACKGROUND = "IsAutoSetOverlayBackground";
+        public const string AUTO_DETECT_TEXT_COLOR = "auto_detect_text_color";
         public const string AUTO_MERGE_OVERLAPPING_TEXT = "AutoMergeOverlappingText";
 
         // Constants for screen selection
@@ -599,6 +603,7 @@ namespace RSTGameTranslation
             _configValues[CLIPBOARD_AUTO_TRANSLATE_MAX_CHARS] = "5000";
             _configValues[WHISPER_RUNTIME] = "cpu";
             _configValues[AUTO_MERGE_OVERLAPPING_TEXT] = "true";
+            _configValues[SHOW_TRANSLATED_PREVIEW] = "false";
 
             // Save the default configuration
             SaveConfig();
@@ -2177,6 +2182,19 @@ namespace RSTGameTranslation
             Console.WriteLine($"Auto Set Overlay Background enabled: {enabled}");
         }
 
+        public bool IsAutoDetectTextColorEnabled()
+        {
+            string value = GetValue(AUTO_DETECT_TEXT_COLOR, "false");
+            return value.ToLower() == "true";
+        }
+
+        public void SetAutoDetectTextColorEnabled(bool enabled)
+        {
+            _configValues[AUTO_DETECT_TEXT_COLOR] = enabled.ToString().ToLower();
+            SaveConfig();
+            Console.WriteLine($"Auto detect text color enabled: {enabled}");
+        }
+
         public bool IsAutoMergeOverlappingTextEnabled()
         {
             string value = GetValue(AUTO_MERGE_OVERLAPPING_TEXT, "true");
@@ -2658,6 +2676,19 @@ namespace RSTGameTranslation
                 SaveConfig();
                 Console.WriteLine($"Mistral model set to: {model}");
             }
+        }
+
+        // Translated Preview Window methods
+        public bool IsTranslatedPreviewEnabled()
+        {
+            string value = GetValue(SHOW_TRANSLATED_PREVIEW, "false");
+            return value.ToLower() == "true";
+        }
+
+        public void SetTranslatedPreviewEnabled(bool enabled)
+        {
+            _configValues[SHOW_TRANSLATED_PREVIEW] = enabled.ToString().ToLower();
+            SaveConfig();
         }
 
         // OCR Display methods
