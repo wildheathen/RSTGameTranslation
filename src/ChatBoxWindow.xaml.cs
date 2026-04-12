@@ -1604,92 +1604,172 @@ namespace RSTGameTranslation
                         }
                     }
 
-                    // Create a new paragraph for this entry
-                    Paragraph para = new Paragraph();
-
-                    // Set paragraph properties - regular margins now that scrollbar is outside
-                    para.Margin = new Thickness(5, 10, 5, 10); // Add vertical spacing
-                    para.TextIndent = 0;
-                    para.LineHeight = Double.NaN; // Use default line height
-
-                    // Add original text based on display mode
-                    if ((_displayMode == 0 || _displayMode == 2) && !string.IsNullOrEmpty(entry.OriginalText))
+                    if (ConfigManager.Instance.IsChatBoxParagraphSplitEnabled())
                     {
-                        // Create a run for the original text
-                        string originalText = entry.OriginalText;
+                        // Split mode: each line becomes its own paragraph
+                        string[] originalLines = (entry.OriginalText ?? "").Split('\n',
+                            StringSplitOptions.RemoveEmptyEntries);
+                        string[] translatedLines = (entry.TranslatedText ?? "").Split('\n',
+                            StringSplitOptions.RemoveEmptyEntries);
 
-                        // Add RTL mark if source language is RTL
-                        if (isSourceRtl && !originalText.StartsWith("\u200F"))
+                        int maxLines = Math.Max(originalLines.Length, translatedLines.Length);
+
+                        for (int i = 0; i < maxLines; i++)
                         {
-                            originalText = "\u200F" + originalText;
+                            Paragraph para = new Paragraph();
+                            para.Margin = new Thickness(5, 6, 5, 6);
+                            para.TextIndent = 0;
+                            para.LineHeight = Double.NaN;
+
+                            string origLine = i < originalLines.Length
+                                ? originalLines[i].Trim() : "";
+                            string transLine = i < translatedLines.Length
+                                ? translatedLines[i].Trim() : "";
+
+                            // Show original text (mode 0 = both, mode 2 = source only)
+                            if ((_displayMode == 0 || _displayMode == 2)
+                                && !string.IsNullOrEmpty(origLine))
+                            {
+                                if (isSourceRtl && !origLine.StartsWith("\u200F"))
+                                    origLine = "\u200F" + origLine;
+
+                                Run originalRun = new Run(origLine);
+                                originalRun.Foreground = new SolidColorBrush(originalTextColor);
+                                originalRun.FontFamily = fontFamily;
+                                originalRun.FontSize = Math.Max(fontSize - 2, 10);
+                                originalRun.FlowDirection = isSourceRtl
+                                    ? System.Windows.FlowDirection.RightToLeft
+                                    : System.Windows.FlowDirection.LeftToRight;
+                                para.Inlines.Add(originalRun);
+
+                                if (_displayMode == 0 && !string.IsNullOrEmpty(transLine))
+                                {
+                                    para.Inlines.Add(new LineBreak());
+                                }
+                            }
+
+                            // Show translated text (mode 0 = both, mode 1 = target only)
+                            if ((_displayMode == 0 || _displayMode == 1)
+                                && !string.IsNullOrEmpty(transLine))
+                            {
+                                if (isTargetRtl && !transLine.StartsWith("\u200F"))
+                                    transLine = "\u200F" + transLine;
+
+                                Run translatedRun = new Run(transLine);
+                                translatedRun.Foreground = new SolidColorBrush(translatedTextColor);
+                                translatedRun.FontFamily = fontFamily;
+                                translatedRun.FontSize = fontSize;
+                                translatedRun.FontWeight = FontWeights.SemiBold;
+                                translatedRun.FlowDirection = isTargetRtl
+                                    ? System.Windows.FlowDirection.RightToLeft
+                                    : System.Windows.FlowDirection.LeftToRight;
+                                para.Inlines.Add(translatedRun);
+                            }
+
+                            // Set paragraph flow direction
+                            if ((_displayMode == 1 && isTargetRtl) ||
+                                (_displayMode == 2 && isSourceRtl) ||
+                                (_displayMode == 0 && isTargetRtl))
+                            {
+                                para.FlowDirection = System.Windows.FlowDirection.RightToLeft;
+                            }
+                            else
+                            {
+                                para.FlowDirection = System.Windows.FlowDirection.LeftToRight;
+                            }
+
+                            chatHistoryText.Document.Blocks.Add(para);
                         }
-
-                        Run originalRun = new Run(originalText);
-
-                        // Format it appropriately
-                        originalRun.Foreground = new SolidColorBrush(originalTextColor);
-                        originalRun.FontFamily = fontFamily;
-                        originalRun.FontSize = Math.Max(fontSize - 2, 10);
-
-                        // Set flow direction for the run
-                        originalRun.FlowDirection = isSourceRtl ?
-                            System.Windows.FlowDirection.RightToLeft :
-                            System.Windows.FlowDirection.LeftToRight;
-
-                        // Add it to the paragraph
-                        para.Inlines.Add(originalRun);
-
-                        // Add line breaks if there's also translated text to be shown
-                        if ((_displayMode == 0) && !string.IsNullOrEmpty(entry.TranslatedText))
-                        {
-                            para.Inlines.Add(new LineBreak());
-                            para.Inlines.Add(new LineBreak());
-                        }
-                    }
-
-                    // Add translated text based on display mode
-                    if ((_displayMode == 0 || _displayMode == 1) && !string.IsNullOrEmpty(entry.TranslatedText))
-                    {
-                        // Create a run for the translated text
-                        string translatedText = entry.TranslatedText;
-
-                        // Add RTL mark if target language is RTL
-                        if (isTargetRtl && !translatedText.StartsWith("\u200F"))
-                        {
-                            translatedText = "\u200F" + translatedText;
-                        }
-
-                        Run translatedRun = new Run(translatedText);
-
-                        // Format it appropriately
-                        translatedRun.Foreground = new SolidColorBrush(translatedTextColor);
-                        translatedRun.FontFamily = fontFamily;
-                        translatedRun.FontSize = fontSize;
-                        translatedRun.FontWeight = FontWeights.SemiBold;
-
-                        // Set flow direction for the run
-                        translatedRun.FlowDirection = isTargetRtl ?
-                            System.Windows.FlowDirection.RightToLeft :
-                            System.Windows.FlowDirection.LeftToRight;
-
-                        // Add it to the paragraph
-                        para.Inlines.Add(translatedRun);
-                    }
-
-                    // Set the flow direction for the entire paragraph based on content
-                    if ((_displayMode == 1 && isTargetRtl) ||
-                        (_displayMode == 2 && isSourceRtl) ||
-                        (_displayMode == 0 && isTargetRtl))
-                    {
-                        para.FlowDirection = System.Windows.FlowDirection.RightToLeft;
                     }
                     else
                     {
-                        para.FlowDirection = System.Windows.FlowDirection.LeftToRight;
-                    }
+                        // Original behavior
+                        Paragraph para = new Paragraph();
 
-                    // Add the paragraph to the document
-                    chatHistoryText.Document.Blocks.Add(para);
+                        // Set paragraph properties - regular margins now that scrollbar is outside
+                        para.Margin = new Thickness(5, 10, 5, 10); // Add vertical spacing
+                        para.TextIndent = 0;
+                        para.LineHeight = Double.NaN; // Use default line height
+
+                        // Add original text based on display mode
+                        if ((_displayMode == 0 || _displayMode == 2) && !string.IsNullOrEmpty(entry.OriginalText))
+                        {
+                            // Create a run for the original text
+                            string originalText = entry.OriginalText;
+
+                            // Add RTL mark if source language is RTL
+                            if (isSourceRtl && !originalText.StartsWith("\u200F"))
+                            {
+                                originalText = "\u200F" + originalText;
+                            }
+
+                            Run originalRun = new Run(originalText);
+
+                            // Format it appropriately
+                            originalRun.Foreground = new SolidColorBrush(originalTextColor);
+                            originalRun.FontFamily = fontFamily;
+                            originalRun.FontSize = Math.Max(fontSize - 2, 10);
+
+                            // Set flow direction for the run
+                            originalRun.FlowDirection = isSourceRtl ?
+                                System.Windows.FlowDirection.RightToLeft :
+                                System.Windows.FlowDirection.LeftToRight;
+
+                            // Add it to the paragraph
+                            para.Inlines.Add(originalRun);
+
+                            // Add line breaks if there's also translated text to be shown
+                            if ((_displayMode == 0) && !string.IsNullOrEmpty(entry.TranslatedText))
+                            {
+                                para.Inlines.Add(new LineBreak());
+                                para.Inlines.Add(new LineBreak());
+                            }
+                        }
+
+                        // Add translated text based on display mode
+                        if ((_displayMode == 0 || _displayMode == 1) && !string.IsNullOrEmpty(entry.TranslatedText))
+                        {
+                            // Create a run for the translated text
+                            string translatedText = entry.TranslatedText;
+
+                            // Add RTL mark if target language is RTL
+                            if (isTargetRtl && !translatedText.StartsWith("\u200F"))
+                            {
+                                translatedText = "\u200F" + translatedText;
+                            }
+
+                            Run translatedRun = new Run(translatedText);
+
+                            // Format it appropriately
+                            translatedRun.Foreground = new SolidColorBrush(translatedTextColor);
+                            translatedRun.FontFamily = fontFamily;
+                            translatedRun.FontSize = fontSize;
+                            translatedRun.FontWeight = FontWeights.SemiBold;
+
+                            // Set flow direction for the run
+                            translatedRun.FlowDirection = isTargetRtl ?
+                                System.Windows.FlowDirection.RightToLeft :
+                                System.Windows.FlowDirection.LeftToRight;
+
+                            // Add it to the paragraph
+                            para.Inlines.Add(translatedRun);
+                        }
+
+                        // Set the flow direction for the entire paragraph based on content
+                        if ((_displayMode == 1 && isTargetRtl) ||
+                            (_displayMode == 2 && isSourceRtl) ||
+                            (_displayMode == 0 && isTargetRtl))
+                        {
+                            para.FlowDirection = System.Windows.FlowDirection.RightToLeft;
+                        }
+                        else
+                        {
+                            para.FlowDirection = System.Windows.FlowDirection.LeftToRight;
+                        }
+
+                        // Add the paragraph to the document
+                        chatHistoryText.Document.Blocks.Add(para);
+                    }
                 }
 
                 // Scroll to the bottom to see newest entries
