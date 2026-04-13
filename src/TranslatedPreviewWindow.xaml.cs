@@ -139,9 +139,10 @@ namespace RSTGameTranslation
                     // Binary search for font that fits the box
                     if (physWidth > 0 && physHeight > 0)
                     {
+                        var probeWeight = physHeight <= 15 ? FontWeights.Normal : FontWeights.Bold;
                         var probe = new TextBlock
                         {
-                            Text = displayText, FontWeight = FontWeights.Bold,
+                            Text = displayText, FontWeight = probeWeight,
                             FontSize = fontSize, TextWrapping = TextWrapping.Wrap,
                         };
                         double lo = 6, hi = fontSize;
@@ -167,8 +168,9 @@ namespace RSTGameTranslation
                 }
 
                 // === Phase 2: Group nearby blocks and equalize font sizes ===
-                // Blocks with similar X (±30px) and consecutive Y (gap < 40px) are a "paragraph".
-                // All blocks in a group use the minimum font of the group so they all fit.
+                // Blocks with similar X and consecutive Y are a "paragraph".
+                // Compare against the closest block in the group (by Y) to handle
+                // long paragraphs where first and last block are far apart.
                 var used = new bool[blockInfos.Count];
                 var finalFontSizes = new double[blockInfos.Count];
                 for (int i = 0; i < blockInfos.Count; i++)
@@ -179,21 +181,30 @@ namespace RSTGameTranslation
                     if (used[i]) continue;
                     used[i] = true;
 
-                    // Build group of vertically adjacent blocks
                     var group = new System.Collections.Generic.List<int> { i };
-                    for (int j = i + 1; j < blockInfos.Count; j++)
+                    // Keep scanning until no more blocks can be added
+                    bool added = true;
+                    while (added)
                     {
-                        if (used[j]) continue;
-                        // Check if block j is near any block already in the group
-                        foreach (int gi in group)
+                        added = false;
+                        for (int j = 0; j < blockInfos.Count; j++)
                         {
-                            double xDist = Math.Abs(blockInfos[j].physX - blockInfos[gi].physX);
-                            double yDist = Math.Abs(blockInfos[j].physY - blockInfos[gi].physY);
-                            if (xDist < 30 && yDist < 40)
+                            if (used[j]) continue;
+                            // Find the closest group member by Y
+                            double minYDist = double.MaxValue;
+                            double minXDist = double.MaxValue;
+                            foreach (int gi in group)
+                            {
+                                double yd = Math.Abs(blockInfos[j].physY - blockInfos[gi].physY);
+                                double xd = Math.Abs(blockInfos[j].physX - blockInfos[gi].physX);
+                                if (yd < minYDist) { minYDist = yd; minXDist = xd; }
+                            }
+                            // Same column (X ±30px) and vertically close to nearest neighbor (±60px)
+                            if (minXDist < 30 && minYDist < 60)
                             {
                                 group.Add(j);
                                 used[j] = true;
-                                break;
+                                added = true;
                             }
                         }
                     }
@@ -219,11 +230,14 @@ namespace RSTGameTranslation
                     var (textObj, displayText, physX, physY, physWidth, physHeight, _, fgBrush, bgBrush) = blockInfos[i];
                     double fontSize = finalFontSizes[i];
 
+                    // Use Normal weight for small labels (height ≤ 15px) to prevent overflow
+                    var fontWeight = physHeight <= 15 ? FontWeights.Normal : FontWeights.Bold;
+
                     var textBlock = new TextBlock
                     {
                         Text = displayText,
                         Foreground = fgBrush,
-                        FontWeight = FontWeights.Bold,
+                        FontWeight = fontWeight,
                         FontSize = fontSize,
                         TextWrapping = TextWrapping.Wrap,
                         TextTrimming = TextTrimming.None,

@@ -514,25 +514,50 @@ namespace RSTGameTranslation
                     // Sort text objects by Y coordinate
                     var sortedTextObjects = _textObjects.OrderBy(t => t.Y).ToList();
 
-                    // Add each translated text to the ChatBox
-                    foreach (var textObject in sortedTextObjects)
+                    if (ConfigManager.Instance.IsChatBoxParagraphSplitEnabled())
                     {
-                        string originalText = textObject.Text;
-                        string translatedText = textObject.TextTranslated;
-
-                        // Only add to chatbox if we have both texts and translation is not empty
-                        if (!string.IsNullOrEmpty(originalText) && !string.IsNullOrEmpty(translatedText))
+                        // Paragraph split mode: combine all blocks into one entry with \n separators
+                        // so the ChatBox can split them into separate paragraphs
+                        var origLines = new StringBuilder();
+                        var transLines = new StringBuilder();
+                        foreach (var textObject in sortedTextObjects)
                         {
-                            // Add to TranslationCompleted, this will add it to the chatbox also
+                            if (!string.IsNullOrEmpty(textObject.Text))
+                                origLines.AppendLine(textObject.Text);
+                            if (!string.IsNullOrEmpty(textObject.TextTranslated))
+                                transLines.AppendLine(textObject.TextTranslated);
+                        }
+                        string combinedOrig = origLines.ToString().Trim();
+                        string combinedTrans = transLines.ToString().Trim();
+                        if (!string.IsNullOrEmpty(combinedOrig) && !string.IsNullOrEmpty(combinedTrans))
+                        {
                             TranslationCompleted?.Invoke(this, new TranslationEventArgs
                             {
-                                OriginalText = originalText,
-                                TranslatedText = translatedText
+                                OriginalText = combinedOrig,
+                                TranslatedText = combinedTrans
                             });
                         }
-                        else
+                    }
+                    else
+                    {
+                        // Default: add each translated text individually to the ChatBox
+                        foreach (var textObject in sortedTextObjects)
                         {
-                            Console.WriteLine($"Skipping empty translation - Original: '{originalText}', Translated: '{translatedText}'");
+                            string originalText = textObject.Text;
+                            string translatedText = textObject.TextTranslated;
+
+                            if (!string.IsNullOrEmpty(originalText) && !string.IsNullOrEmpty(translatedText))
+                            {
+                                TranslationCompleted?.Invoke(this, new TranslationEventArgs
+                                {
+                                    OriginalText = originalText,
+                                    TranslatedText = translatedText
+                                });
+                            }
+                            else
+                            {
+                                Console.WriteLine($"Skipping empty translation - Original: '{originalText}', Translated: '{translatedText}'");
+                            }
                         }
                     }
                 }
@@ -2523,25 +2548,50 @@ namespace RSTGameTranslation
 
             // Sort text objects by Y coordinate
             var sortedTextObjects = _textObjects.OrderBy(t => t.Y).ToList();
-            // Add each translated text to the ChatBox
-            foreach (var textObject in sortedTextObjects)
-            {
-                string originalText = textObject.Text;
-                string translatedText = textObject.TextTranslated; // Assuming translation is done in-place
 
-                // Only add to chatbox if we have both texts and translation is not empty
-                if (!string.IsNullOrEmpty(originalText) && !string.IsNullOrEmpty(translatedText))
+            if (ConfigManager.Instance.IsChatBoxParagraphSplitEnabled())
+            {
+                // Paragraph split mode: combine all blocks into one entry with \n separators
+                var origLines = new StringBuilder();
+                var transLines = new StringBuilder();
+                foreach (var textObject in sortedTextObjects)
                 {
-                    // Add to TranslationCompleted, this will add it to the chatbox also
+                    if (!string.IsNullOrEmpty(textObject.Text))
+                        origLines.AppendLine(textObject.Text);
+                    if (!string.IsNullOrEmpty(textObject.TextTranslated))
+                        transLines.AppendLine(textObject.TextTranslated);
+                }
+                string combinedOrig = origLines.ToString().Trim();
+                string combinedTrans = transLines.ToString().Trim();
+                if (!string.IsNullOrEmpty(combinedOrig) && !string.IsNullOrEmpty(combinedTrans))
+                {
                     TranslationCompleted?.Invoke(this, new TranslationEventArgs
                     {
-                        OriginalText = originalText,
-                        TranslatedText = translatedText
+                        OriginalText = combinedOrig,
+                        TranslatedText = combinedTrans
                     });
                 }
-                else
+            }
+            else
+            {
+                // Default: add each translated text individually to the ChatBox
+                foreach (var textObject in sortedTextObjects)
                 {
-                    Console.WriteLine($"Skipping empty translation - Original: '{originalText}', Translated: '{translatedText}'");
+                    string originalText = textObject.Text;
+                    string translatedText = textObject.TextTranslated;
+
+                    if (!string.IsNullOrEmpty(originalText) && !string.IsNullOrEmpty(translatedText))
+                    {
+                        TranslationCompleted?.Invoke(this, new TranslationEventArgs
+                        {
+                            OriginalText = originalText,
+                            TranslatedText = translatedText
+                        });
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Skipping empty translation - Original: '{originalText}', Translated: '{translatedText}'");
+                    }
                 }
             }
         }
