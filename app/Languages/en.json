@@ -624,5 +624,17 @@
   "Quickstart_Footer_DontShow": "Don't show this guide again",
   "Quickstart_Footer_Previous": "Previous",
   "Quickstart_Footer_Next": "Next",
-  "Quickstart_Footer_Finish": "Finish"
+  "Quickstart_Footer_Finish": "Finish",
+
+  "_comment_new_features": "TODO: Localize these strings in all language files (ja, ko, ru, vi, zh_cn)",
+  "Btn_Preview": "Preview",
+  "Preview_Title": "Translated Preview",
+  "Preview_WaitingForTranslation": "Waiting for translation...",
+  "Preview_NoTextDetected": "No text detected",
+  "Overlay_Grp_Behavior": "Behavior",
+  "Overlay_ClearOnChange": "Clear overlay on text change",
+  "Overlay_ClearOnChange_Tooltip": "Immediately clear overlay when screen text changes, preventing stale translation boxes from lingering out of position",
+  "ChatBox_ParagraphSplit": "Split text into paragraphs",
+  "ChatBox_ParagraphSplit_Tooltip": "Display each detected text block as a separate paragraph in the chat window",
+  "Settings_AutoDetectTextColor": "Auto-detect text color"
 }

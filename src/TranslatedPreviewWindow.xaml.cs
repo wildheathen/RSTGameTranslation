@@ -117,11 +117,12 @@ namespace RSTGameTranslation
                 {
                     if (textObj == null) continue;
 
-                    string displayText = !string.IsNullOrEmpty(textObj.TextTranslated)
-                        ? textObj.TextTranslated
-                        : textObj.Text;
-
-                    if (string.IsNullOrEmpty(displayText)) continue;
+                    // Use translated text; for untranslated blocks, render background-only
+                    // to cover original text in the screenshot
+                    string displayText = (textObj.TextTranslated ?? "")
+                        .Replace("##|||##", "\n")
+                        .Replace("|", "")
+                        .Trim();
 
                     double physX = textObj.X * dpiScaleX;
                     double physY = textObj.Y * dpiScaleY;
@@ -136,6 +137,10 @@ namespace RSTGameTranslation
                     double maxFontSize = normalizedHeight > 0 ? normalizedHeight * 0.9 : 16;
                     double fontSize = Math.Clamp(maxFontSize, 6, 96);
 
+                    // Use available width (from block X to canvas right edge) so translated
+                    // text can extend rightward instead of wrapping in the narrow OCR box.
+                    double availableWidth = Math.Max(physWidth, previewContainer.Width - physX);
+
                     // Binary search for font that fits the box
                     if (physWidth > 0 && physHeight > 0)
                     {
@@ -149,12 +154,12 @@ namespace RSTGameTranslation
                         for (int iter = 0; iter < 10; iter++)
                         {
                             probe.FontSize = hi;
-                            probe.Measure(new System.Windows.Size(physWidth, double.PositiveInfinity));
+                            probe.Measure(new System.Windows.Size(availableWidth, double.PositiveInfinity));
                             if (probe.DesiredSize.Height <= physHeight)
                                 break;
                             double mid = (lo + hi) / 2;
                             probe.FontSize = mid;
-                            probe.Measure(new System.Windows.Size(physWidth, double.PositiveInfinity));
+                            probe.Measure(new System.Windows.Size(availableWidth, double.PositiveInfinity));
                             if (probe.DesiredSize.Height <= physHeight)
                                 lo = mid;
                             else
@@ -174,7 +179,12 @@ namespace RSTGameTranslation
                 var used = new bool[blockInfos.Count];
                 var finalFontSizes = new double[blockInfos.Count];
                 for (int i = 0; i < blockInfos.Count; i++)
+                {
                     finalFontSizes[i] = blockInfos[i].fontSize;
+                    // Exclude background-only blocks (no translation) from font grouping
+                    if (string.IsNullOrEmpty(blockInfos[i].text))
+                        used[i] = true;
+                }
 
                 for (int i = 0; i < blockInfos.Count; i++)
                 {
@@ -190,17 +200,25 @@ namespace RSTGameTranslation
                         for (int j = 0; j < blockInfos.Count; j++)
                         {
                             if (used[j]) continue;
-                            // Find the closest group member by Y
+                            // Find the closest group member by Y, then check X-overlap
                             double minYDist = double.MaxValue;
-                            double minXDist = double.MaxValue;
+                            bool xOverlaps = false;
                             foreach (int gi in group)
                             {
                                 double yd = Math.Abs(blockInfos[j].physY - blockInfos[gi].physY);
-                                double xd = Math.Abs(blockInfos[j].physX - blockInfos[gi].physX);
-                                if (yd < minYDist) { minYDist = yd; minXDist = xd; }
+                                if (yd < minYDist)
+                                {
+                                    minYDist = yd;
+                                    // Check if X ranges overlap (catches indented continuation lines)
+                                    double jL = blockInfos[j].physX;
+                                    double jR = jL + Math.Max(blockInfos[j].physWidth, 10);
+                                    double gL = blockInfos[gi].physX;
+                                    double gR = gL + Math.Max(blockInfos[gi].physWidth, 10);
+                                    xOverlaps = (jL < gR + 20) && (gL < jR + 20);
+                                }
                             }
-                            // Same column (X ±30px) and vertically close to nearest neighbor (±60px)
-                            if (minXDist < 30 && minYDist < 60)
+                            // X ranges overlap and vertically close to nearest neighbor (±40px)
+                            if (xOverlaps && minYDist < 40)
                             {
                                 group.Add(j);
                                 used[j] = true;
@@ -230,6 +248,22 @@ namespace RSTGameTranslation
                     var (textObj, displayText, physX, physY, physWidth, physHeight, _, fgBrush, bgBrush) = blockInfos[i];
                     double fontSize = finalFontSizes[i];
 
+                    // Background-only block: cover original text when no translation exists
+                    if (string.IsNullOrEmpty(displayText))
+                    {
+                        var coverBorder = new Border
+                        {
+                            Background = bgBrush,
+                            Width = physWidth,
+                            Height = physHeight,
+                            IsHitTestVisible = false
+                        };
+                        Canvas.SetLeft(coverBorder, physX);
+                        Canvas.SetTop(coverBorder, physY);
+                        previewOverlayCanvas.Children.Add(coverBorder);
+                        continue;
+                    }
+
                     // Use Normal weight for small labels (height ≤ 15px) to prevent overflow
                     var fontWeight = physHeight <= 15 ? FontWeights.Normal : FontWeights.Bold;
 
@@ -256,13 +290,15 @@ namespace RSTGameTranslation
 
                     if (physWidth > 0)
                     {
-                        border.Width = physWidth;
-                        textBlock.MaxWidth = physWidth - 2;
+                        // Let text extend rightward into available space instead of
+                        // wrapping inside the narrow OCR box (translations are often longer)
+                        double availWidth = previewContainer.Width - physX;
+                        border.MinWidth = physWidth;
+                        border.MaxWidth = availWidth;
+                        textBlock.MaxWidth = availWidth - 2;
                     }
                     if (physHeight > 0)
                     {
-                        // Use MinHeight so box covers original text, but can grow
-                        // taller if translation needs more lines
                         border.MinHeight = physHeight;
                     }
 
@@ -275,13 +311,17 @@ namespace RSTGameTranslation
                 }
 
                 previewStatusText.Text = $"{renderedCount} blocks | {DateTime.Now:HH:mm:ss}";
+#if DEBUG
                 try { File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "preview_debug.log"), diagLog); } catch { }
+#endif
             }
             catch (Exception ex)
             {
                 string errorLog = $"[{DateTime.Now:HH:mm:ss}] Error refreshing preview: {ex.Message}\n{ex.StackTrace}\n";
                 Console.WriteLine(errorLog);
+#if DEBUG
                 try { File.AppendAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "preview_debug.log"), errorLog); } catch { }
+#endif
                 previewStatusText.Text = $"Error: {ex.Message}";
             }
         }
